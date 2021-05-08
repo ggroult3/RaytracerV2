@@ -20,6 +20,7 @@ using namespace std;
 #include <time.h>
 #include "Ray.h"
 #include "Sphere.h"
+#include <algorithm>
 
 
 
@@ -33,7 +34,7 @@ int main() {
 	int H = 512; // Hauteur de l'image
 
 	
-	//* Test de la classe Vect
+	/* Test de la classe Vect
 	Vect u(2, 3, 4);
 	Vect v(4, 4, 4);
 	Vect uPlusV = u + v;
@@ -51,14 +52,18 @@ int main() {
 	cout << "v / 4 = " << vBy4 << endl;
 	cout << "u ^ v = " << uCrossV << endl;
 	cout << "u . v = " << dot(u, v) << endl;
-	
+	*/
 
-	Vect CameraOrigin(0, 0, 55); 
-	Vect SphereCenter(0, 0, 0);
-	double rayon = 10;
-	Sphere S(SphereCenter, rayon);
+	Vect cameraOrigin(0, 0, 55); // Coordonnees de la camera
+	Vect sphereCenter(0, 0, 0); // Centre de la sphere
+	double rayon = 10; // rayon de la sphere
+	Vect sphereAlbedo=Vect(21., 137., 10.)/255.; // Couleur de la sphere dit aussi albedo
+	Sphere S(sphereCenter, rayon, sphereAlbedo);
 
-	double fieldOfView = 60 * M_PI / 180;
+	double fieldOfView = 60 * M_PI / 180; // Champ de vision
+
+	double lightIntensity = 1E7; // Intensite lumineuse
+	Vect lightOrigin(-10, 20, 40); // Coordonnees de la lampe
 
 
 	vector<unsigned char> image(W * H * 3, 0);
@@ -67,23 +72,34 @@ int main() {
 
 			Vect direction(j - W / 2, i - H / 2, -W / (2.*tan(fieldOfView / 2)));
 			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
-			Ray r(CameraOrigin, direction); // Ray partant de la camera vers un pixel de l'image
+			Ray r(cameraOrigin, direction); // Ray partant de la camera vers un pixel de l'image
 
-			bool hasIntersect = S.intersect(r); // Determine si le Ray intersecte la sphere
+			Vect intersectionPoint, intersectionNormal; // Point d'intersection et le vecteur normale a la sphere a ce point 
+
+			bool hasIntersect = S.intersect(r,intersectionPoint,intersectionNormal); // Determine si le Ray intersecte la sphere
+			// Si c'est le cas, il renvoie le point d'intersection et la normale a la sphere a ce point d'intersection
+
 			Vect color(0.,0.,0.); // Par defaut la couleur du pixel est noire
-			if (hasIntersect) {
-				color = Vect(21., 137., 10.); //S'il y a intersection sphere-ray, le pixel sera vert
+			if (hasIntersect) { //S'il y a intersection sphere-ray, la couleur du pixel dependra de la distance entre le point d'intersection
+				// et la lampe
+				
+				Vect intersectionToLamp = lightOrigin - intersectionPoint;
+				double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
+				double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
+				color =  sphereAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de la sphere * terme de diffusion de la lumiere
 			}
 
 			// Affichage de l'intersection
-			image[(i * W + j) * 3 + 0] = color[0]; // Rouge
-			image[(i * W + j) * 3 + 1] = color[1]; // Vert
-			image[(i * W + j) * 3 + 2] = color[2]; // Bleu
+			// On prend le minimum entre la couleur determinee et 255 afin d'eviter un depassement arithmetique
+			// On inverse l'image en remplacant i * W + j par ((H - i - 1) * W + j)
+			image[((H - i - 1) * W + j) * 3 + 0] = min(255.,color[0]); // Rouge
+			image[((H - i - 1) * W + j) * 3 + 1] = min(255., color[1]); // Vert
+			image[((H - i - 1) * W + j) * 3 + 2] = min(255., color[2]); // Bleu
 		}
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("Intersect.png", W, H, 3, &image[0], 0);
+	stbi_write_png("LightDiffuse.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

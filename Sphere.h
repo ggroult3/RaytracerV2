@@ -5,13 +5,15 @@
 class Sphere
 {
 public:
-	Sphere(const Vect& C, double R);
+	Sphere(const Vect& C, double R,const Vect& albedo);
 	Vect& getCenter();
 	double getRayon();
-	bool intersect(Ray& r);
+	Vect& getAlbedo();
+	bool intersect(Ray& r,Vect& P, Vect& N);
 
 private:
 	Vect center;
 	double rayon;
+	Vect albedo;
 };
 
