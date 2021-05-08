@@ -13,8 +13,14 @@ using namespace std;
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 #include "Vect.h"
 #include <time.h>
+#include "Ray.h"
+#include "Sphere.h"
+
 
 
 int main() {
@@ -26,6 +32,8 @@ int main() {
 	int W = 512; // Largeur de l'image
 	int H = 512; // Hauteur de l'image
 
+	
+	//* Test de la classe Vect
 	Vect u(2, 3, 4);
 	Vect v(4, 4, 4);
 	Vect uPlusV = u + v;
@@ -37,26 +45,45 @@ int main() {
 	cout << "v = " << v << endl;
 	cout << "u + v = " << uPlusV << endl;
 	cout << "u - v = " << uMinusV << endl;
-	cout << "norme de u = " << u.get_Norm() << endl;
-	cout << "norme de v = " << v.get_Norm() << endl;
+	cout << "norme de u = " << u.getNorm() << endl;
+	cout << "norme de v = " << v.getNorm() << endl;
 	cout << "v normalise = " << vNormalized << endl;
 	cout << "v / 4 = " << vBy4 << endl;
 	cout << "u ^ v = " << uCrossV << endl;
 	cout << "u . v = " << dot(u, v) << endl;
+	
+
+	Vect CameraOrigin(0, 0, 55); 
+	Vect SphereCenter(0, 0, 0);
+	double rayon = 10;
+	Sphere S(SphereCenter, rayon);
+
+	double fieldOfView = 60 * M_PI / 180;
+
 
 	vector<unsigned char> image(W * H * 3, 0);
 	for (int i = 0; i < H; i++) {
 		for (int j = 0; j < W; j++) {
-			
-			// Affichage d'une image rouge
-			image[(i * W + j) * 3 + 0] = 255; // Rouge
-			image[(i * W + j) * 3 + 1] = 0; // Vert
-			image[(i * W + j) * 3 + 2] = 0; // Bleu
+
+			Vect direction(j - W / 2, i - H / 2, -W / (2.*tan(fieldOfView / 2)));
+			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
+			Ray r(CameraOrigin, direction); // Ray partant de la camera vers un pixel de l'image
+
+			bool hasIntersect = S.intersect(r); // Determine si le Ray intersecte la sphere
+			Vect color(0.,0.,0.); // Par defaut la couleur du pixel est noire
+			if (hasIntersect) {
+				color = Vect(21., 137., 10.); //S'il y a intersection sphere-ray, le pixel sera vert
+			}
+
+			// Affichage de l'intersection
+			image[(i * W + j) * 3 + 0] = color[0]; // Rouge
+			image[(i * W + j) * 3 + 1] = color[1]; // Vert
+			image[(i * W + j) * 3 + 2] = color[2]; // Bleu
 		}
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("HelloWorld.png", W, H, 3, &image[0], 0);
+	stbi_write_png("Intersect.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

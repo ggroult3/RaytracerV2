@@ -15,12 +15,17 @@ double& Vect::operator[](int i) {
 	return coords[i];
 }
 
-double Vect::get_Norm() {
-	return sqrt(coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2]);
+double Vect::getSquarredNorm()
+{
+	return coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+}
+
+double Vect::getNorm() {
+	return sqrt(getSquarredNorm());
 }
 
 Vect Vect::normalize() {
-	double norm = this->get_Norm();
+	double norm = this->getNorm();
 	return Vect(coords[0] / norm, coords[1] / norm, coords[2] / norm);
 }
 
@@ -84,5 +89,12 @@ ostream& operator<< (ostream& sortie, Vect& u) {
 	*/
 	sortie << "(" << u[0] << "," << u[1] << "," << u[2] << ")";
 	return sortie;
+}
+
+Vect pow(const Vect& u, double n)
+{
+	/* Elevation a la puissance n du vecteur u
+	*/
+	return Vect(pow(u[0],n), pow(u[1], n), pow(u[2], n));
 }
 
