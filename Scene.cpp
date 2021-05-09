@@ -41,14 +41,14 @@ int Scene::getObjectsSize()
 	return objects.size();
 }
 
-bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo)
+bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine)
 {
 	/* Determine ou le ray intersecte un element de la scene par le calcul du point d'intersection
 	* et la normale a la sphere au point d'intersection.
 	* Dans le cas ou le ray intersecte plusieurs elements de la scene,
 	* nous nous interessons au point d'intersection le plus proche de la camera
 	*/
-	double racine = 1E10; // Initialisation a tres grande valeur pour obtenir la racine positive la plus proche de zero par la suite
+	racine = 1E10; // Initialisation a tres grande valeur pour obtenir la racine positive la plus proche de zero par la suite
 	bool hasIntersect = false;
 
 	for (int i = 0; i < getObjectsSize(); i++) { // Nous parcourons les differents elements de la scene pour savoir s'il y a une intersection

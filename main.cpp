@@ -102,8 +102,8 @@ int main() {
 
 			Vect intersectionPoint, intersectionNormal; // Point d'intersection et le vecteur normale a la sphere a ce point 
 			Vect objectAlbedo; // Albedo de l'objet intersecte dans la scene
-
-			bool hasIntersect = scene.intersect(ray,intersectionPoint,intersectionNormal,objectAlbedo); // Determine si le Ray intersecte la sphere
+			double racine; // Racine obtenue lors de l'intersection
+			bool hasIntersect = scene.intersect(ray, intersectionPoint, intersectionNormal, objectAlbedo, racine); // Determine si le Ray intersecte la sphere
 			// Si c'est le cas, il renvoie le point d'intersection, la normale a la sphere a ce point d'intersection et l'albedo de l'objet intersecte
 
 			Vect color(0.,0.,0.); // Par defaut la couleur du pixel est noire
@@ -112,15 +112,34 @@ int main() {
 				
 				Vect intersectionToLamp = lightOrigin - intersectionPoint;
 				double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
-				double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
-				color =  objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
+
+				/* Avant de calculer la couleur du pixel, nous allons vérifier que ce pixel n'appartient pas a l'ombre d'un element de la scene
+				* Pour cela, nous envoyons un Ray vers la lampe. 
+				* S'il y a intersection ray-objet (donc racine positive) 
+				* et que le point d'intersection obtenue se situe sur le segment [premier point d'intersection - lampe] (donc shadowRacine < distance),
+				* alors le pixel restera noir car il appartient à l'ombre d'un objet de la scene.
+				*/
+
+				Ray shadowRay(intersectionPoint + 0.0001 * intersectionNormal, intersectionToLamp / distance); // Ray allant du point d'intersection vers la lampe.
+				// Nous avons decale l'origine du Ray de la surface de l'objet pour eviter les effets de bord (nommes bruits d'ombre)
+
+				//Nous reutilisons la meme methode d'intersection donc nous calculons le point d'intersection et le vecteur normal a ce point mais ils ne seront pas utilises
+				Vect shadowIntersectionPoint, shadowIntersectionNormal,shadowAlbedo;
+				double shadowRacine; // racine de la nouvelle intersection
+
+				bool hasShadowIntersect = scene.intersect(shadowRay, shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo, shadowRacine);
+
+				if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur 
+					double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
+					color =  objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
+				}
 			}
 
 			// Affichage de l'intersection
 			// On prend le minimum entre la couleur determinee et 255 afin d'eviter un depassement arithmetique
 			// On inverse l'image en remplacant i * W + j par ((H - i - 1) * W + j)
 			// Si on utilise la correction du Gamma, la valeur de la couleur est elevee a la puissance 0.45
-			if (useGammaCorrection) {
+			if (useGammaCorrection) { // Cas ou la correction Gamma est appliquee
 				image[((H - i - 1) * W + j) * 3 + 0] = min(255., pow(color[0],0.45)); // Rouge
 				image[((H - i - 1) * W + j) * 3 + 1] = min(255., pow(color[1], 0.45)); // Vert
 				image[((H - i - 1) * W + j) * 3 + 2] = min(255., pow(color[2], 0.45)); // Bleu
@@ -135,7 +154,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("CorrectionGamma.png", W, H, 3, &image[0], 0);
+	stbi_write_png("OmbrePorteeCorrigee.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

@@ -15,7 +15,7 @@ public:
 	Vect& getLightOrigin();
 	void push(Sphere& object);
 	int getObjectsSize();
-	bool intersect(Ray& r, Vect& P, Vect& N, Vect& albedo);
+	bool intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine);
 private:
 	double lightIntensity;// Intensite lumineuse
 	Vect lightOrigin; // Coordonnees de la lampe
