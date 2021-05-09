@@ -5,7 +5,7 @@ Scene::Scene()
 
 }
 
-void Scene::setLightIntensity(double I)
+void Scene::setLightIntensity(double& I)
 {
 	// Mutateur de l'intensité lumineuse
 	lightIntensity = I;

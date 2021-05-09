@@ -58,7 +58,17 @@ int main() {
 
 	double fieldOfView = 60 * M_PI / 180; // Champ de vision
 
-	double lightIntensity = 1E7; // Intensite lumineuse
+	bool useGammaCorrection = true;
+	double lightIntensity;
+
+	if (useGammaCorrection) {
+		lightIntensity = 5E9; // Intensité lumineuse avec correction gamma
+	}
+	else {
+		lightIntensity = 1E7; // Intensite lumineuse sans correction gamma
+	}
+
+	
 	Vect lightOrigin(-10, 20, 40); // Coordonnees de la lampe
 
 	//Definition de la scene
@@ -109,14 +119,23 @@ int main() {
 			// Affichage de l'intersection
 			// On prend le minimum entre la couleur determinee et 255 afin d'eviter un depassement arithmetique
 			// On inverse l'image en remplacant i * W + j par ((H - i - 1) * W + j)
-			image[((H - i - 1) * W + j) * 3 + 0] = min(255.,color[0]); // Rouge
-			image[((H - i - 1) * W + j) * 3 + 1] = min(255., color[1]); // Vert
-			image[((H - i - 1) * W + j) * 3 + 2] = min(255., color[2]); // Bleu
+			// Si on utilise la correction du Gamma, la valeur de la couleur est elevee a la puissance 0.45
+			if (useGammaCorrection) {
+				image[((H - i - 1) * W + j) * 3 + 0] = min(255., pow(color[0],0.45)); // Rouge
+				image[((H - i - 1) * W + j) * 3 + 1] = min(255., pow(color[1], 0.45)); // Vert
+				image[((H - i - 1) * W + j) * 3 + 2] = min(255., pow(color[2], 0.45)); // Bleu
+			}
+			else {
+				image[((H - i - 1) * W + j) * 3 + 0] = min(255.,color[0]); // Rouge
+				image[((H - i - 1) * W + j) * 3 + 1] = min(255., color[1]); // Vert
+				image[((H - i - 1) * W + j) * 3 + 2] = min(255., color[2]); // Bleu
+			}
+			
 		}
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("Scene.png", W, H, 3, &image[0], 0);
+	stbi_write_png("CorrectionGamma.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

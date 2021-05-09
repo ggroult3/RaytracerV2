@@ -9,7 +9,7 @@ class Scene
 {
 public:
 	Scene();
-	void setLightIntensity(double I);
+	void setLightIntensity(double& I);
 	void setLightOrigin(Vect& L);
 	double getLightIntensity();
 	Vect& getLightOrigin();
