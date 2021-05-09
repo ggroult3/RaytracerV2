@@ -1,9 +1,10 @@
 #include "Sphere.h"
 
-Sphere::Sphere(const Vect& C, double R, const Vect& albedo) {
+Sphere::Sphere(const Vect& C, double R, const Vect& albedo, bool mirror) {
 	center = C;
 	rayon = R;
 	this->albedo = albedo/255.;
+	isMirror = mirror;
 }
 
 Vect& Sphere::getCenter()
@@ -22,6 +23,12 @@ Vect& Sphere::getAlbedo()
 {
 	// Accesseur de l'albedo de la sphere
 	return albedo;
+}
+
+bool Sphere::getMirrorProperty()
+{
+	// Accesseur de la propriete miroir de la sphere
+	return isMirror;
 }
 
 bool Sphere::intersect(Ray& r,Vect& P,Vect& N,double& racine)

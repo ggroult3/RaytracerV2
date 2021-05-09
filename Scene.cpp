@@ -41,7 +41,7 @@ int Scene::getObjectsSize()
 	return objects.size();
 }
 
-bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine)
+bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine, bool& isMirror)
 {
 	/* Determine ou le ray intersecte un element de la scene par le calcul du point d'intersection
 	* et la normale a la sphere au point d'intersection.
@@ -64,7 +64,59 @@ bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal,
 				hasIntersect = true;
 			}
 			albedo = objects[i].getAlbedo(); // La couleur du pixel sera lie a l'albedo du ieme objet
+			isMirror = objects[i].getMirrorProperty(); // Propriete miroir du ieme objet
 		}
 	}
 	return hasIntersect;
+}
+
+Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
+{
+	Vect intersectionPoint, intersectionNormal; // Point d'intersection et le vecteur normale a la sphere a ce point 
+	Vect objectAlbedo; // Albedo de l'objet intersecte dans la scene
+	double racine; // Racine obtenue lors de l'intersection
+	bool isMirror; // Propriete miroir du materiau
+	bool hasIntersect = intersect(ray, intersectionPoint, intersectionNormal, objectAlbedo, racine, isMirror); // Determine si le Ray intersecte la sphere
+	// Si c'est le cas, il renvoie le point d'intersection, la normale a la sphere a ce point d'intersection et l'albedo de l'objet intersecte
+	
+	Vect color(0., 0., 0.); // Par defaut la couleur du pixel est noire
+	if (hasIntersect) { //S'il y a intersection sphere-ray, nous avons deux cas possibles : 
+
+		if (isMirror) { // Cas miroir : la couleur resultera de l'intersection ray-objet du Ray reflechi
+			Vect incidentDirection = ray.getDirection();
+			Vect reflectedDirection = incidentDirection - 2 * dot(incidentDirection, intersectionNormal) * intersectionNormal;
+			reflectedDirection = reflectedDirection.normalize();
+			Ray reflectedRay(intersectionPoint + 0.001 * intersectionNormal, reflectedDirection); // Ray reflechi. Nous decalons l'origine du ray de la surface de l'objet pour eviter les effets de bord
+			return estimatePixelColor(reflectedRay, nbRebonds + 1);// Couleur determinee par l'intersection ray-objet du ray reflechi
+		}
+		else { // Cas diffus : la couleur du pixel dependra de la distance entre le point d'intersection et la lampe
+			Vect intersectionToLamp = lightOrigin - intersectionPoint;
+			double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
+
+			/* Avant de calculer la couleur du pixel, nous allons vérifier que ce pixel n'appartient pas a l'ombre d'un element de la scene
+			* Pour cela, nous envoyons un Ray vers la lampe.
+			* S'il y a intersection ray-objet (donc racine positive)
+			* et que le point d'intersection obtenue se situe sur le segment [premier point d'intersection - lampe] (donc shadowRacine < distance),
+			* alors le pixel restera noir car il appartient à l'ombre d'un objet de la scene.
+			*/
+
+			Ray shadowRay(intersectionPoint + 0.0001 * intersectionNormal, intersectionToLamp / distance); // Ray allant du point d'intersection vers la lampe.
+			// Nous avons decale l'origine du Ray de la surface de l'objet pour eviter les effets de bord (nommes bruits d'ombre)
+
+			//Nous reutilisons la meme methode d'intersection donc nous calculons le point d'intersection et le vecteur normal a ce point mais ils ne seront pas utilises
+			Vect shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo;
+			double shadowRacine; // racine de la nouvelle intersection
+			bool shadowMirror; // propriete miroir non utilisee dans le cas de l'ombre
+			bool hasShadowIntersect = intersect(shadowRay, shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo, shadowRacine, shadowMirror);
+
+			if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur 
+				double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
+				color = objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
+			}
+		}
+	}
+
+		
+	
+	return color;
 }

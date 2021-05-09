@@ -3,6 +3,10 @@
 #include "Sphere.h"
 #include <vector>
 #include "Ray.h"
+
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 using namespace std;
 
 class Scene
@@ -15,7 +19,8 @@ public:
 	Vect& getLightOrigin();
 	void push(Sphere& object);
 	int getObjectsSize();
-	bool intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine);
+	bool intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine, bool& isMirror);
+	Vect& estimatePixelColor(Ray& ray, double nbRebonds);
 private:
 	double lightIntensity;// Intensite lumineuse
 	Vect lightOrigin; // Coordonnees de la lampe

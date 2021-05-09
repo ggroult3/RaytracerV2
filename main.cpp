@@ -76,13 +76,16 @@ int main() {
 	scene.setLightIntensity(lightIntensity);
 	scene.setLightOrigin(lightOrigin);
 
-	Sphere S(Vect(0, 0, 0), 10, Vect(21., 137., 10.)); // Sphere principale de couleur verte
+	//Declaration des elements de la scene
+	Sphere S(Vect(0, 0, 0), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
 	Sphere sol(Vect(0, -1000, 0), 990, Vect(255., 0., 0.));
 	Sphere plafond(Vect(0, 1000, 0), 940, Vect(0., 0., 255.));
 	Sphere murGauche(Vect(-1000, 0, 0), 940, Vect(255., 0., 255.));
 	Sphere murDroite(Vect(1000, 0, 0), 940, Vect(255., 255., 255.));
 	Sphere murAvant(Vect(0, 0, -1000), 940, Vect(255., 255., 0.));
 	Sphere murArriere(Vect(0, 0, 1000), 940, Vect(0., 255., 0.));
+
+	//Ajout des elements de la scene
 	scene.push(S);
 	scene.push(sol);
 	scene.push(plafond);
@@ -96,46 +99,14 @@ int main() {
 	for (int i = 0; i < H; i++) {
 		for (int j = 0; j < W; j++) {
 
+			// Calcul du ray envoye par la camera
 			Vect direction(j - W / 2, i - H / 2, -W / (2.*tan(fieldOfView / 2)));
 			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
 			Ray ray(cameraOrigin, direction); // Ray partant de la camera vers un pixel de l'image
 
-			Vect intersectionPoint, intersectionNormal; // Point d'intersection et le vecteur normale a la sphere a ce point 
-			Vect objectAlbedo; // Albedo de l'objet intersecte dans la scene
-			double racine; // Racine obtenue lors de l'intersection
-			bool hasIntersect = scene.intersect(ray, intersectionPoint, intersectionNormal, objectAlbedo, racine); // Determine si le Ray intersecte la sphere
-			// Si c'est le cas, il renvoie le point d'intersection, la normale a la sphere a ce point d'intersection et l'albedo de l'objet intersecte
+			Vect color = scene.estimatePixelColor(ray, 0); // Calcul de la couleur du pixel			
 
-			Vect color(0.,0.,0.); // Par defaut la couleur du pixel est noire
-			if (hasIntersect) { //S'il y a intersection sphere-ray, la couleur du pixel dependra de la distance entre le point d'intersection
-				// et la lampe
-				
-				Vect intersectionToLamp = lightOrigin - intersectionPoint;
-				double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
-
-				/* Avant de calculer la couleur du pixel, nous allons vérifier que ce pixel n'appartient pas a l'ombre d'un element de la scene
-				* Pour cela, nous envoyons un Ray vers la lampe. 
-				* S'il y a intersection ray-objet (donc racine positive) 
-				* et que le point d'intersection obtenue se situe sur le segment [premier point d'intersection - lampe] (donc shadowRacine < distance),
-				* alors le pixel restera noir car il appartient à l'ombre d'un objet de la scene.
-				*/
-
-				Ray shadowRay(intersectionPoint + 0.0001 * intersectionNormal, intersectionToLamp / distance); // Ray allant du point d'intersection vers la lampe.
-				// Nous avons decale l'origine du Ray de la surface de l'objet pour eviter les effets de bord (nommes bruits d'ombre)
-
-				//Nous reutilisons la meme methode d'intersection donc nous calculons le point d'intersection et le vecteur normal a ce point mais ils ne seront pas utilises
-				Vect shadowIntersectionPoint, shadowIntersectionNormal,shadowAlbedo;
-				double shadowRacine; // racine de la nouvelle intersection
-
-				bool hasShadowIntersect = scene.intersect(shadowRay, shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo, shadowRacine);
-
-				if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur 
-					double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
-					color =  objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
-				}
-			}
-
-			// Affichage de l'intersection
+			// Ecriture de la couleur du pixel dans la matrice image
 			// On prend le minimum entre la couleur determinee et 255 afin d'eviter un depassement arithmetique
 			// On inverse l'image en remplacant i * W + j par ((H - i - 1) * W + j)
 			// Si on utilise la correction du Gamma, la valeur de la couleur est elevee a la puissance 0.45
@@ -144,7 +115,7 @@ int main() {
 				image[((H - i - 1) * W + j) * 3 + 1] = min(255., pow(color[1], 0.45)); // Vert
 				image[((H - i - 1) * W + j) * 3 + 2] = min(255., pow(color[2], 0.45)); // Bleu
 			}
-			else {
+			else { // Pas de correction Gamma
 				image[((H - i - 1) * W + j) * 3 + 0] = min(255.,color[0]); // Rouge
 				image[((H - i - 1) * W + j) * 3 + 1] = min(255., color[1]); // Vert
 				image[((H - i - 1) * W + j) * 3 + 2] = min(255., color[2]); // Bleu
@@ -154,7 +125,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("OmbrePorteeCorrigee.png", W, H, 3, &image[0], 0);
+	stbi_write_png("Miroir.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;
