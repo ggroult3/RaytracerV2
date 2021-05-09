@@ -77,7 +77,9 @@ int main() {
 	scene.setLightOrigin(lightOrigin);
 
 	//Declaration des elements de la scene
-	Sphere S(Vect(0, 0, 0), 10, Vect(21., 137., 10.), false, true); // Sphere principale transparente
+	Sphere S(Vect(-20, 0, 0), 10, Vect(21., 137., 10.)); // Sphere principale verte
+	Sphere Smiroir(Vect(20, 0, 0), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
+	Sphere Stransparente(Vect(0, 0, 0), 10, Vect(21., 137., 10.), false, true); // Sphere principale transparente
 	Sphere sol(Vect(0, -1000, 0), 990, Vect(255., 0., 0.));
 	Sphere plafond(Vect(0, 1000, 0), 940, Vect(0., 0., 255.));
 	Sphere murGauche(Vect(-1000, 0, 0), 940, Vect(255., 0., 255.));
@@ -87,6 +89,8 @@ int main() {
 
 	//Ajout des elements de la scene
 	scene.push(S);
+	scene.push(Smiroir);
+	scene.push(Stransparente);
 	scene.push(sol);
 	scene.push(plafond);
 	scene.push(murGauche);
@@ -129,7 +133,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("Transparent.png", W, H, 3, &image[0], 0);
+	stbi_write_png("TroisSpheres.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;
