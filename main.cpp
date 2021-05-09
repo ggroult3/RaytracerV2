@@ -21,6 +21,7 @@ using namespace std;
 #include "Ray.h"
 #include "Sphere.h"
 #include <algorithm>
+#include "Scene.h"
 
 
 
@@ -28,11 +29,10 @@ int main() {
 
 	time_t beginTime, endTime; //Timecode de debut et de fin d'execution du code
 	time(&beginTime); 
-	cout << "Hello world!" << endl;
+	cout << "Start !" << endl;
 
 	int W = 512; // Largeur de l'image
 	int H = 512; // Hauteur de l'image
-
 	
 	/* Test de la classe Vect
 	Vect u(2, 3, 4);
@@ -55,15 +55,31 @@ int main() {
 	*/
 
 	Vect cameraOrigin(0, 0, 55); // Coordonnees de la camera
-	Vect sphereCenter(0, 0, 0); // Centre de la sphere
-	double rayon = 10; // rayon de la sphere
-	Vect sphereAlbedo=Vect(21., 137., 10.)/255.; // Couleur de la sphere dit aussi albedo
-	Sphere S(sphereCenter, rayon, sphereAlbedo);
 
 	double fieldOfView = 60 * M_PI / 180; // Champ de vision
 
 	double lightIntensity = 1E7; // Intensite lumineuse
 	Vect lightOrigin(-10, 20, 40); // Coordonnees de la lampe
+
+	//Definition de la scene
+	Scene scene;
+	scene.setLightIntensity(lightIntensity);
+	scene.setLightOrigin(lightOrigin);
+
+	Sphere S(Vect(0, 0, 0), 10, Vect(21., 137., 10.)); // Sphere principale de couleur verte
+	Sphere sol(Vect(0, -1000, 0), 990, Vect(255., 0., 0.));
+	Sphere plafond(Vect(0, 1000, 0), 940, Vect(0., 0., 255.));
+	Sphere murGauche(Vect(-1000, 0, 0), 940, Vect(255., 0., 255.));
+	Sphere murDroite(Vect(1000, 0, 0), 940, Vect(255., 255., 255.));
+	Sphere murAvant(Vect(0, 0, -1000), 940, Vect(255., 255., 0.));
+	Sphere murArriere(Vect(0, 0, 1000), 940, Vect(0., 255., 0.));
+	scene.push(S);
+	scene.push(sol);
+	scene.push(plafond);
+	scene.push(murGauche);
+	scene.push(murDroite);
+	scene.push(murAvant);
+	scene.push(murArriere);
 
 
 	vector<unsigned char> image(W * H * 3, 0);
@@ -72,12 +88,13 @@ int main() {
 
 			Vect direction(j - W / 2, i - H / 2, -W / (2.*tan(fieldOfView / 2)));
 			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
-			Ray r(cameraOrigin, direction); // Ray partant de la camera vers un pixel de l'image
+			Ray ray(cameraOrigin, direction); // Ray partant de la camera vers un pixel de l'image
 
 			Vect intersectionPoint, intersectionNormal; // Point d'intersection et le vecteur normale a la sphere a ce point 
+			Vect objectAlbedo; // Albedo de l'objet intersecte dans la scene
 
-			bool hasIntersect = S.intersect(r,intersectionPoint,intersectionNormal); // Determine si le Ray intersecte la sphere
-			// Si c'est le cas, il renvoie le point d'intersection et la normale a la sphere a ce point d'intersection
+			bool hasIntersect = scene.intersect(ray,intersectionPoint,intersectionNormal,objectAlbedo); // Determine si le Ray intersecte la sphere
+			// Si c'est le cas, il renvoie le point d'intersection, la normale a la sphere a ce point d'intersection et l'albedo de l'objet intersecte
 
 			Vect color(0.,0.,0.); // Par defaut la couleur du pixel est noire
 			if (hasIntersect) { //S'il y a intersection sphere-ray, la couleur du pixel dependra de la distance entre le point d'intersection
@@ -86,7 +103,7 @@ int main() {
 				Vect intersectionToLamp = lightOrigin - intersectionPoint;
 				double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
 				double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
-				color =  sphereAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de la sphere * terme de diffusion de la lumiere
+				color =  objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
 			}
 
 			// Affichage de l'intersection
@@ -99,7 +116,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("LightDiffuse.png", W, H, 3, &image[0], 0);
+	stbi_write_png("Scene.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

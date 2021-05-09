@@ -3,7 +3,7 @@
 Sphere::Sphere(const Vect& C, double R, const Vect& albedo) {
 	center = C;
 	rayon = R;
-	this->albedo = albedo;
+	this->albedo = albedo/255.;
 }
 
 Vect& Sphere::getCenter()
@@ -24,7 +24,7 @@ Vect& Sphere::getAlbedo()
 	return albedo;
 }
 
-bool Sphere::intersect(Ray& r,Vect& P,Vect& N)
+bool Sphere::intersect(Ray& r,Vect& P,Vect& N,double& racine)
 {
 	/* Determine s'il y a intersection en resolvant l'equation a*x^2 + b*x + c = 0
 	* avec a = (r.getDirection)^2
@@ -38,7 +38,7 @@ bool Sphere::intersect(Ray& r,Vect& P,Vect& N)
 	* donc nous n'avons pas d'intersections visibles (donc on retourne false)
 	*/
 	bool hasIntersect = false;
-
+	racine = 1E11;
 	double a = 1; // car la direction du Ray r est normalisee
 	double b = 2 * dot(r.getDirection(), r.getOrigin() - getCenter());
 	double sqNorm1 = (r.getOrigin() - getCenter()).getSquarredNorm();
@@ -55,7 +55,6 @@ bool Sphere::intersect(Ray& r,Vect& P,Vect& N)
 		if (racine2 >= 0) { // La plus grande racine est positive ou nulle, donc intersection visible
 			hasIntersect = true;
 
-			double racine; // Le point d'intersection le plus proche correspond a la racine positive la plus petite
 			if (racine1 > 0) { // racine1 etant la plus petite, si elle est positive c'est celle de notre point d'intersection 
 				racine = racine1;
 			}

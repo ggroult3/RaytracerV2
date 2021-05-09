@@ -9,7 +9,7 @@ public:
 	Vect& getCenter();
 	double getRayon();
 	Vect& getAlbedo();
-	bool intersect(Ray& r,Vect& P, Vect& N);
+	bool intersect(Ray& r,Vect& P, Vect& N,double& racine);
 
 private:
 	Vect center;
