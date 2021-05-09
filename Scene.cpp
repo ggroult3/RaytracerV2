@@ -41,7 +41,7 @@ int Scene::getObjectsSize()
 	return objects.size();
 }
 
-bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine, bool& isMirror)
+bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine, bool& isMirror, bool& isTransparent)
 {
 	/* Determine ou le ray intersecte un element de la scene par le calcul du point d'intersection
 	* et la normale a la sphere au point d'intersection.
@@ -65,6 +65,7 @@ bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal,
 			}
 			albedo = objects[i].getAlbedo(); // La couleur du pixel sera lie a l'albedo du ieme objet
 			isMirror = objects[i].getMirrorProperty(); // Propriete miroir du ieme objet
+			isTransparent = objects[i].getTransparencyProperty();
 		}
 	}
 	return hasIntersect;
@@ -75,12 +76,13 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 	Vect intersectionPoint, intersectionNormal; // Point d'intersection et le vecteur normale a la sphere a ce point 
 	Vect objectAlbedo; // Albedo de l'objet intersecte dans la scene
 	double racine; // Racine obtenue lors de l'intersection
-	bool isMirror; // Propriete miroir du materiau
-	bool hasIntersect = intersect(ray, intersectionPoint, intersectionNormal, objectAlbedo, racine, isMirror); // Determine si le Ray intersecte la sphere
+	bool isMirror; // Propriete miroir du materiau$
+	bool isTransparent; //  Propriete de transparence du materiau
+	bool hasIntersect = intersect(ray, intersectionPoint, intersectionNormal, objectAlbedo, racine, isMirror, isTransparent); // Determine si le Ray intersecte la sphere
 	// Si c'est le cas, il renvoie le point d'intersection, la normale a la sphere a ce point d'intersection et l'albedo de l'objet intersecte
 	
 	Vect color(0., 0., 0.); // Par defaut la couleur du pixel est noire
-	if (hasIntersect) { //S'il y a intersection sphere-ray, nous avons deux cas possibles : 
+	if (hasIntersect && nbRebonds < 5) { //S'il y a intersection sphere-ray et que nous n'avons pas atteint la fin de la recursion, nous avons trois cas possibles : 
 
 		if (isMirror) { // Cas miroir : la couleur resultera de l'intersection ray-objet du Ray reflechi
 			Vect incidentDirection = ray.getDirection();
@@ -89,34 +91,68 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 			Ray reflectedRay(intersectionPoint + 0.001 * intersectionNormal, reflectedDirection); // Ray reflechi. Nous decalons l'origine du ray de la surface de l'objet pour eviter les effets de bord
 			return estimatePixelColor(reflectedRay, nbRebonds + 1);// Couleur determinee par l'intersection ray-objet du ray reflechi
 		}
-		else { // Cas diffus : la couleur du pixel dependra de la distance entre le point d'intersection et la lampe
-			Vect intersectionToLamp = lightOrigin - intersectionPoint;
-			double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
+		else { 
+			if (isTransparent) { /* Cas transparent : la couleur resultera de l'intersection ray-objet du Ray refracte
+				* Nous faisons l'hypothese que la sphere est en verre quand elle est transparente.
+				* Le ray refacte est calcule d'apres la 2eme loi de Snell-Descartes :
+				* nIncident * sin(incidentAngle) = nRefracted * sin(refractedAngle)
+				* Nous calculons d'abord la composante tangentielle (sin(refractedAngle)) a partir de la formule
+				* Ensuite nous calculons la composante normale en partant du principe que la direction reflechie est unitaire
+				*/
+				double nAir = 1.0008; // Indice optique de l'air
+				double nVerre = 1.5; // Indice optique du verre
+				double nIncident, nRefracted; // Indices optiques des milieux incident et refringeant
+				Vect opticalNormal; // vecteur normale optique
 
-			/* Avant de calculer la couleur du pixel, nous allons vérifier que ce pixel n'appartient pas a l'ombre d'un element de la scene
-			* Pour cela, nous envoyons un Ray vers la lampe.
-			* S'il y a intersection ray-objet (donc racine positive)
-			* et que le point d'intersection obtenue se situe sur le segment [premier point d'intersection - lampe] (donc shadowRacine < distance),
-			* alors le pixel restera noir car il appartient à l'ombre d'un objet de la scene.
-			*/
+				Vect incidentDirection = ray.getDirection();
+				if (dot(incidentDirection, intersectionNormal) > 0) {// Cas ou le ray incident sort de l'objet
+					nIncident = nVerre; // le milieu incident est le verre
+					nRefracted = nAir; // le milieu refringeant est l'air
+					opticalNormal = -intersectionNormal; // la normale optique est oppose a la normale au point d'intersection
+				}
+				else {// Cas ou le ray incident entre dans l'objet
+					nIncident = nAir; // le milieu incident est l'air
+					nRefracted = nVerre; // le milieu refringeant est le verre
+					opticalNormal = intersectionNormal; // la normale optique est la normale au point d'intersection
+				}
+				double opticalIndexRatio = nIncident / nRefracted; // Rapport des indices optiques
+				Vect tangentialComponent = opticalIndexRatio * (incidentDirection - dot(incidentDirection, opticalNormal) * opticalNormal); // Composante tangentielle = sinus de l'angle refracte
+				double squarredCosinusRefractedAngle = 1 - opticalIndexRatio * opticalIndexRatio * (1 - dot(incidentDirection, opticalNormal) * dot(incidentDirection, opticalNormal)); // Cosinus carre de l'angle refracte
+				Vect normalComponent = sqrt(squarredCosinusRefractedAngle) * (-opticalNormal); // Composante normale = - cosinus de l'angle refracte
 
-			Ray shadowRay(intersectionPoint + 0.0001 * intersectionNormal, intersectionToLamp / distance); // Ray allant du point d'intersection vers la lampe.
-			// Nous avons decale l'origine du Ray de la surface de l'objet pour eviter les effets de bord (nommes bruits d'ombre)
+				Vect refractedDirection = (tangentialComponent + normalComponent).normalize(); // Direction du ray refracte
 
-			//Nous reutilisons la meme methode d'intersection donc nous calculons le point d'intersection et le vecteur normal a ce point mais ils ne seront pas utilises
-			Vect shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo;
-			double shadowRacine; // racine de la nouvelle intersection
-			bool shadowMirror; // propriete miroir non utilisee dans le cas de l'ombre
-			bool hasShadowIntersect = intersect(shadowRay, shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo, shadowRacine, shadowMirror);
+				Ray refractedRay(intersectionPoint - 0.0001 * opticalNormal, refractedDirection); // Ray refracte. Nous decalons l'origine pour eviter les effets de bord
+				
+				return estimatePixelColor(refractedRay, nbRebonds + 1); // Couleur determinee par l'intersection ray-objet du ray refracte
+			}
+			else { // Cas diffus : la couleur du pixel dependra de la distance entre le point d'intersection et la lampe
+				Vect intersectionToLamp = lightOrigin - intersectionPoint;
+				double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
 
-			if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur 
-				double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
-				color = objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
+				/* Avant de calculer la couleur du pixel, nous allons vérifier que ce pixel n'appartient pas a l'ombre d'un element de la scene
+				* Pour cela, nous envoyons un Ray vers la lampe.
+				* S'il y a intersection ray-objet (donc racine positive)
+				* et que le point d'intersection obtenue se situe sur le segment [premier point d'intersection - lampe] (donc shadowRacine < distance),
+				* alors le pixel restera noir car il appartient à l'ombre d'un objet de la scene.
+				*/
+
+				Ray shadowRay(intersectionPoint + 0.0001 * intersectionNormal, intersectionToLamp / distance); // Ray allant du point d'intersection vers la lampe.
+				// Nous avons decale l'origine du Ray de la surface de l'objet pour eviter les effets de bord (nommes bruits d'ombre)
+
+				//Nous reutilisons la meme methode d'intersection donc nous calculons le point d'intersection et le vecteur normal a ce point mais ils ne seront pas utilises
+				Vect shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo;
+				double shadowRacine; // racine de la nouvelle intersection
+				bool shadowMirror, shadowTransparent; // proprietes miroir et transparences non utilisees dans le cas de l'ombre
+				bool hasShadowIntersect = intersect(shadowRay, shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo, shadowRacine, shadowMirror, shadowTransparent);
+
+				if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur 
+					double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
+					color = objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
+				}
+				
+				return color;
 			}
 		}
 	}
-
-		
-	
-	return color;
 }

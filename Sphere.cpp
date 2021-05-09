@@ -1,10 +1,11 @@
 #include "Sphere.h"
 
-Sphere::Sphere(const Vect& C, double R, const Vect& albedo, bool mirror) {
+Sphere::Sphere(const Vect& C, double R, const Vect& albedo, bool mirror, bool transparent) {
 	center = C;
 	rayon = R;
 	this->albedo = albedo/255.;
 	isMirror = mirror;
+	isTransparent = transparent;
 }
 
 Vect& Sphere::getCenter()
@@ -29,6 +30,12 @@ bool Sphere::getMirrorProperty()
 {
 	// Accesseur de la propriete miroir de la sphere
 	return isMirror;
+}
+
+bool Sphere::getTransparencyProperty()
+{
+	// Accesseur de la propriete de transparence de la sphere
+	return isTransparent;
 }
 
 bool Sphere::intersect(Ray& r,Vect& P,Vect& N,double& racine)

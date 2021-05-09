@@ -77,7 +77,7 @@ int main() {
 	scene.setLightOrigin(lightOrigin);
 
 	//Declaration des elements de la scene
-	Sphere S(Vect(0, 0, 0), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
+	Sphere S(Vect(0, 0, 0), 10, Vect(21., 137., 10.), false, true); // Sphere principale transparente
 	Sphere sol(Vect(0, -1000, 0), 990, Vect(255., 0., 0.));
 	Sphere plafond(Vect(0, 1000, 0), 940, Vect(0., 0., 255.));
 	Sphere murGauche(Vect(-1000, 0, 0), 940, Vect(255., 0., 255.));
@@ -98,7 +98,7 @@ int main() {
 	vector<unsigned char> image(W * H * 3, 0);
 	for (int i = 0; i < H; i++) {
 		for (int j = 0; j < W; j++) {
-
+			
 			// Calcul du ray envoye par la camera
 			Vect direction(j - W / 2, i - H / 2, -W / (2.*tan(fieldOfView / 2)));
 			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
@@ -106,26 +106,30 @@ int main() {
 
 			Vect color = scene.estimatePixelColor(ray, 0); // Calcul de la couleur du pixel			
 
-			// Ecriture de la couleur du pixel dans la matrice image
+			// Ajustement de la couleur
 			// On prend le minimum entre la couleur determinee et 255 afin d'eviter un depassement arithmetique
-			// On inverse l'image en remplacant i * W + j par ((H - i - 1) * W + j)
 			// Si on utilise la correction du Gamma, la valeur de la couleur est elevee a la puissance 0.45
 			if (useGammaCorrection) { // Cas ou la correction Gamma est appliquee
-				image[((H - i - 1) * W + j) * 3 + 0] = min(255., pow(color[0],0.45)); // Rouge
-				image[((H - i - 1) * W + j) * 3 + 1] = min(255., pow(color[1], 0.45)); // Vert
-				image[((H - i - 1) * W + j) * 3 + 2] = min(255., pow(color[2], 0.45)); // Bleu
+				color[0] = min(255., pow(color[0],0.45)); // Rouge
+				color[1] = min(255., pow(color[1], 0.45)); // Vert
+				color[2] = min(255., pow(color[2], 0.45)); // Bleu
 			}
 			else { // Pas de correction Gamma
-				image[((H - i - 1) * W + j) * 3 + 0] = min(255.,color[0]); // Rouge
-				image[((H - i - 1) * W + j) * 3 + 1] = min(255., color[1]); // Vert
-				image[((H - i - 1) * W + j) * 3 + 2] = min(255., color[2]); // Bleu
+				color[0] = min(255.,color[0]); // Rouge
+				color[1] = min(255., color[1]); // Vert
+				color[2] = min(255., color[2]); // Bleu
 			}
-			
+
+			// Ecriture de la couleur du pixel dans la matrice image
+			// On inverse l'image en remplacant i * W + j par ((H - i - 1) * W + j)
+			image[((H - i - 1) * W + j) * 3 + 0] = color[0]; // Rouge
+			image[((H - i - 1) * W + j) * 3 + 1] = color[1]; // Vert
+			image[((H - i - 1) * W + j) * 3 + 2] = color[2]; // Bleu
 		}
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("Miroir.png", W, H, 3, &image[0], 0);
+	stbi_write_png("Transparent.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

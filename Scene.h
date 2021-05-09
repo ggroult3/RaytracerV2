@@ -19,7 +19,7 @@ public:
 	Vect& getLightOrigin();
 	void push(Sphere& object);
 	int getObjectsSize();
-	bool intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine, bool& isMirror);
+	bool intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal, Vect& albedo,double& racine, bool& isMirror, bool& isTransparent);
 	Vect& estimatePixelColor(Ray& ray, double nbRebonds);
 private:
 	double lightIntensity;// Intensite lumineuse
