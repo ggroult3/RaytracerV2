@@ -146,7 +146,8 @@ int main() {
 	scene.setLightOrigin(lightOrigin);
 
 	//Declaration des elements de la scene
-	Sphere S(Vect(-20, 0, 0), 10, Vect(21., 137., 10.)); // Sphere principale verte
+	Sphere lumiere(scene.getLightOrigin(), 5, Vect(255., 255., 255.)); // Lampe spherique
+	Sphere Sdiffuse(Vect(-20, 0, 0), 10, Vect(21., 137., 10.)); // Sphere principale verte
 	Sphere Smiroir(Vect(20, 0, 0), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
 	Sphere Stransparente(Vect(0, 0, 0), 10, Vect(21., 137., 10.), false, true); // Sphere principale transparente
 	Sphere sol(Vect(0, -1000, 0), 990, Vect(255., 0., 0.));
@@ -157,7 +158,8 @@ int main() {
 	Sphere murArriere(Vect(0, 0, 1000), 940, Vect(0., 255., 0.));
 
 	//Ajout des elements de la scene
-	scene.push(S);
+	scene.push(lumiere);
+	scene.push(Sdiffuse);
 	scene.push(Smiroir);
 	scene.push(Stransparente);
 	scene.push(sol);
@@ -188,49 +190,47 @@ int main() {
 
 			Vect color(0., 0., 0.); // Par defaut le pixel est noir
 
-			// Application de l'anti-crenelage
-			double sigma = 0.25; // Ecart-type de la loi normale
-			for (int k = 0; k < ratioRayPerPixel; k++) {
-				double u1 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
-				double u2 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+			if (useAntiAliasing) { // Application de l'anti-crenelage
+				double sigma = 0.25; // Ecart-type de la loi normale
+				for (int k = 0; k < ratioRayPerPixel; k++) {
+					double u1 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+					double u2 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
 
-				// Calcul des coordonnees aleatoires suivant la loi normale centree d'ecart-type sigma
-				// via la transformation de Box-Muller
-				double x = sigma * cos(2 * M_PI * u1) * sqrt(-2 * log(u2));
-				double y = sigma * sin(2 * M_PI * u1) * sqrt(-2 * log(u2));
+					// Calcul des coordonnees aleatoires suivant la loi normale centree d'ecart-type sigma
+					// via la transformation de Box-Muller
+					double x = sigma * cos(2 * M_PI * u1) * sqrt(-2 * log(u2));
+					double y = sigma * sin(2 * M_PI * u1) * sqrt(-2 * log(u2));
 
+					// Calcul du ray envoye par la camera
+					// La direction du ray est pertubee par l'ajout du vecteur (x, y, 0)
+					Vect disturbedDirection(j - W / 2 + x + 0.5, i - H / 2 + y + 0.5, -W / (2. * tan(fieldOfView / 2)));
+					disturbedDirection = disturbedDirection.normalize(); // la direction du rayon doit toujours etre normee
+					Ray disturbedRay(cameraOrigin, disturbedDirection); // Ray partant de la camera vers une zone voisine au centre du pixel de l'image
+
+					// Calcul de la couleur du pixel
+					// Pour observer l'effet de l'eclairage indirecte, nous envoyons un certain nombre de rays pour chaque pixel de l'image
+					// et nous calculons la couleur moyenne
+					Vect colorContribution = scene.estimatePixelColor(disturbedRay, 0);
+					color = color + colorContribution;
+				}
+			}
+			else { // Pas d'anti-crenelage
 				// Calcul du ray envoye par la camera
-				// La direction du ray est pertubee par l'ajout du vecteur (x, y, 0)
-				Vect disturbedDirection(j - W / 2 + x+ 0.5, i - H / 2 + y + 0.5, -W / (2. * tan(fieldOfView / 2)));
-				disturbedDirection = disturbedDirection.normalize(); // la direction du rayon doit toujours etre normee
-				Ray disturbedRay(cameraOrigin, disturbedDirection); // Ray partant de la camera vers une zone voisine au centre du pixel de l'image
+				Vect direction(j - W / 2, i - H / 2, -W / (2. * tan(fieldOfView / 2)));
+				direction = direction.normalize(); // la direction du rayon doit toujours etre normee
+				Ray ray(cameraOrigin, direction); // Ray partant de la camera vers le centre du pixel de l'image
 
 				// Calcul de la couleur du pixel
 				// Pour observer l'effet de l'eclairage indirecte, nous envoyons un certain nombre de rays pour chaque pixel de l'image
 				// et nous calculons la couleur moyenne
-				Vect colorContribution = scene.estimatePixelColor(disturbedRay, 0);
-				color = color + colorContribution;
+				for (int k = 0; k < ratioRayPerPixel; k++) {
+					Vect colorContribution = scene.estimatePixelColor(ray, 0);
+					color = color + colorContribution;
+				}
 			}
+			
 			color = color / ratioRayPerPixel; // couleur moyenne
 
-
-			/*
-			// Pas d'anti-crenelage
-
-			// Calcul du ray envoye par la camera
-			Vect direction(j - W / 2, i - H / 2, -W / (2. * tan(fieldOfView / 2)));
-			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
-			Ray ray(cameraOrigin, direction); // Ray partant de la camera vers le centre du pixel de l'image
-
-			// Calcul de la couleur du pixel
-			// Pour observer l'effet de l'eclairage indirecte, nous envoyons un certain nombre de rays pour chaque pixel de l'image
-			// et nous calculons la couleur moyenne
-			for (int k = 0; k < ratioRayPerPixel; k++) {
-				Vect colorContribution = scene.estimatePixelColor(ray, 0);
-				color = color + colorContribution;
-			}
-			color = color / ratioRayPerPixel; // couleur moyenne
-			*/
 			//Vect color = scene.estimatePixelColor(ray, 0);
 
 			// Ajustement de la couleur
@@ -255,7 +255,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("AntiEcrenelage.png", W, H, 3, &image[0], 0);
+	stbi_write_png("OmbreDouce.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;
