@@ -144,7 +144,7 @@ Vect generateRandomDirection(const Vect& intersectionNormal)
 	Vect ey = cross(ez, ex); // Premier vecteur perpendiculaire au vecteur normal. Ce vecteur est unitaire
 
 	Vect randomDirection = x * ex + y * ey + z * ez; // Changement de repere
-	// randomDirection = randomDirection.normalize(); // La direction doit etre unitaire
+	randomDirection = randomDirection.normalize(); // La direction doit etre unitaire
 
 	return randomDirection;
 }

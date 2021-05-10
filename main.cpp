@@ -166,15 +166,19 @@ int main() {
 	scene.push(murAvant);
 	scene.push(murArriere);
 
+	
 
 	vector<unsigned char> image(W * H * 3, 0);
+
+	// Parallelisation des operations
+#pragma omp parallel for schedule(dynamic,1)
 	for (int i = 0; i < H; i++) {
 		if (i % 50 == 0) {
 			cout << i << endl;
 		}
 		for (int j = 0; j < W; j++) {
 
-			
+			//cout << "########################################################################" << endl;
 			// Calcul du ray envoye par la camera
 			Vect direction(j - W / 2, i - H / 2, -W / (2.*tan(fieldOfView / 2)));
 			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
@@ -182,14 +186,18 @@ int main() {
 
 			// Calcul de la couleur du pixel
 			
+			
 			Vect color(0., 0., 0.); // Par defaut le pixel est noir
 			// Pour observer l'effet de l'eclairage indirecte, nous envoyons un certain nombre de rays pour chaque pixel de l'image
 			// et nous calculons la couleur moyenne
 			for (int k = 0; k < ratioRayPerPixel; k++) {
 				Vect colorContribution = scene.estimatePixelColor(ray, 0);
+				//cout << "contrib = " << colorContribution << endl;
 				color = color + colorContribution;
+				//cout << "Sumcolor = " << color << endl;
 			}
 			color = color / ratioRayPerPixel; // couleur moyenne
+			
 			
 			
 			//Vect color = scene.estimatePixelColor(ray, 0);
@@ -207,7 +215,7 @@ int main() {
 				color[1] = min(255., color[1]); // Vert
 				color[2] = min(255., color[2]); // Bleu
 			}
-
+			//cout << "Finalcolor = " << color << endl;
 			// Ecriture de la couleur du pixel dans la matrice image
 			// On inverse l'image en remplacant i * W + j par ((H - i - 1) * W + j)
 			image[((H - i - 1) * W + j) * 3 + 0] = color[0]; // Rouge

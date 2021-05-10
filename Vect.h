@@ -13,7 +13,7 @@ static uniform_real_distribution<double> uniform(0, 1);
 class Vect
 {
 public:
-	Vect(double x = 0, double y = 0, double z = 0);
+	Vect(double x = 0., double y = 0., double z = 0.);
 	double operator[](int i) const;
 	double& operator[](int i);
 	double getSquarredNorm();

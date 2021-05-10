@@ -75,9 +75,9 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 {
 	Vect intersectionPoint, intersectionNormal; // Point d'intersection et le vecteur normale a la sphere a ce point 
 	Vect objectAlbedo; // Albedo de l'objet intersecte dans la scene
-	double racine; // Racine obtenue lors de l'intersection
-	bool isMirror; // Propriete miroir du materiau$
-	bool isTransparent; //  Propriete de transparence du materiau
+	double racine = 5E10; // Racine obtenue lors de l'intersection
+	bool isMirror = false; // Propriete miroir du materiau$
+	bool isTransparent = false; //  Propriete de transparence du materiau
 	bool hasIntersect = intersect(ray, intersectionPoint, intersectionNormal, objectAlbedo, racine, isMirror, isTransparent); // Determine si le Ray intersecte la sphere
 	// Si c'est le cas, il renvoie le point d'intersection, la normale a la sphere a ce point d'intersection et l'albedo de l'objet intersecte
 	
@@ -160,9 +160,14 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 					double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
 					
 					color = objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
+
 				}
+
+				//cout << "directColor = " << color << endl;
+
 			}
 			
+			//cout << "Search indirectColor" << endl;
 			// Contribution de l'eclairage indirecte
 			// Nous envoyons un ray depuis le point d'intersection dans une direction determinee aleatoirement dans une hemisphere
 			// La couleur indirecte resultera de l'intersection ray-objet de ce ray
@@ -170,8 +175,11 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 			Ray randomRay(intersectionPoint + 0.001 * intersectionNormal, randomDirection); // origine du ray decale pour eviter les effets de bord
 			Vect indirectColor = estimatePixelColor(randomRay, nbRebonds + 1); // Couleur obtenue par eclairage indirecte
 			// D'apres l'equation du rendu, la couleur du pixel est la somme des contributions des eclairages directe et indirecte
+			//cout << "indirectColor = " << indirectColor << endl;
 			Vect prod = (objectAlbedo * indirectColor);
+			//cout << "prod =" << prod << endl;
 			color = color + objectAlbedo * indirectColor;
+			//cout << "so color = " << color << endl;
 			
 		}
 	}
