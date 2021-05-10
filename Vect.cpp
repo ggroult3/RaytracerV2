@@ -98,3 +98,54 @@ Vect pow(const Vect& u, double n)
 	return Vect(pow(u[0],n), pow(u[1], n), pow(u[2], n));
 }
 
+Vect generateRandomDirection(const Vect& intersectionNormal)
+{
+	/* Renvoie une direction generee aleatoirement.
+	* Pour cela, nous echantillonnons le facteur en cos(theta_i) de la BRDF a partir de deux nombres aleatoires
+	* u1 et u2 suivant la loi uniforme U[0,1].
+	* Nous obtenons donc les coordonnees suivantes : 
+	* x = cos(2 * pi * u1) * sqrt(1 - u2)
+	* y = sin(2 * pi * u1) * sqrt(1 - u2)
+	* z = sqrt(u2)
+	* Ensuite nous construisons un repere via des vecteurs perpendiculaires au vecteur normale
+	* et nous effecturons un changement de repere
+	*/
+
+	double u1 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+	double u2 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+
+	// Calcul des coordonnees
+	double x = cos(2 * M_PI * u1) * sqrt(1 - u2);
+	double y = sin(2 * M_PI * u1) * sqrt(1 - u2);
+	double z = sqrt(u2);
+
+	// Construction du repere
+	Vect ez = intersectionNormal; // Vecteur normal unitaire
+
+	Vect ex; // Premier vecteur perpendiculaire au vecteur normal
+	// Pour cela, nous annulons la plus petite des coordonees du vecteur normal,
+	// nous inversons les deux autres coordonnes et nous ajoutons un signe a l'une des deux coordonnees restante
+	// Exemple : Soit N(xn, yn, zn) le vecteur normal avec min(xn, yn, zn) = xn
+	// Un vecteur perpendiculaire à N est u(0, zn, -yn)
+	
+	if (ez[0] < ez[1] && ez[0] < ez[2]) { // Le minimum est sur la premiere composante
+		ex = Vect(0, ez[2], -ez[1]);
+	}
+	else {
+		if (ez[1] < ez[0] && ez[1] < ez[2]) { // Le minimum est sur la deuxieme composante
+			ex = Vect(ez[2], 0, -ez[0]);
+		}
+		else {  // Le minimum est sur la troisieme composante
+			ex = Vect(ez[1], -ez[0], 0);
+		}
+	}
+	ex = ex.normalize(); // ex doit etre unitaire
+
+	Vect ey = cross(ez, ex); // Premier vecteur perpendiculaire au vecteur normal. Ce vecteur est unitaire
+
+	Vect randomDirection = x * ex + y * ey + z * ez; // Changement de repere
+	// randomDirection = randomDirection.normalize(); // La direction doit etre unitaire
+
+	return randomDirection;
+}
+

@@ -1,7 +1,15 @@
 #pragma once
 #include <iostream>
+#define _USE_MATH_DEFINES
 #include <math.h>
+#include <random>
+
 using namespace std;
+
+static default_random_engine engine(7697);
+static uniform_real_distribution<double> uniform(0, 1);
+
+
 class Vect
 {
 public:
@@ -22,6 +30,7 @@ public:
 	friend double dot(const Vect& u, const Vect& v);
 	friend ostream& operator<<(ostream& sortie, Vect& u);
 	friend Vect pow(const Vect& u, double n);
+	friend Vect generateRandomDirection(const Vect& intersectionNormal);
 
 
 private :

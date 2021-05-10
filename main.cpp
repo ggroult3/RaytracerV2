@@ -23,9 +23,7 @@ using namespace std;
 #include <algorithm>
 #include "Scene.h"
 
-#include <random>
-static default_random_engine engine(7697);
-static uniform_real_distribution<double> uniform(0, 1);
+
 
 void estimateCosIntegral(int power = 1) {
 	/* Nous cherchons a estimer l'integrale de cos^power sur l'intervalle [-pi/2;pi/2] par la methode de Monte-Carlo
@@ -92,13 +90,17 @@ int main() {
 	cout << "Start !" << endl;
 
 	// Estimation d'integrale par Monte-Carlo
+	/*
 	estimateCosIntegral(10); // Reponse attendue : 0.773126 / Reponse obtenue : 0.773862
 	estimateCosIntegral(2); // Reponse attendue : 1.5708 / Reponse obtenue : 1.56931
 	estimateCosDoubleIntegral(2); // Reponse attendue : 4.9348 / Reponse obtenue : 2.47889
+	*/
 
 
 	int W = 512; // Largeur de l'image
 	int H = 512; // Hauteur de l'image
+
+	int ratioRayPerPixel = 100; // Nombre de rays envoyes pour chaque pixel (pour l'eclairage indirecte)
 	
 	/* Test de la classe Vect
 	Vect u(2, 3, 4);
@@ -167,14 +169,30 @@ int main() {
 
 	vector<unsigned char> image(W * H * 3, 0);
 	for (int i = 0; i < H; i++) {
+		if (i % 50 == 0) {
+			cout << i << endl;
+		}
 		for (int j = 0; j < W; j++) {
+
 			
 			// Calcul du ray envoye par la camera
 			Vect direction(j - W / 2, i - H / 2, -W / (2.*tan(fieldOfView / 2)));
 			direction = direction.normalize(); // la direction du rayon doit toujours etre normee
 			Ray ray(cameraOrigin, direction); // Ray partant de la camera vers un pixel de l'image
 
-			Vect color = scene.estimatePixelColor(ray, 0); // Calcul de la couleur du pixel			
+			// Calcul de la couleur du pixel
+			
+			Vect color(0., 0., 0.); // Par defaut le pixel est noir
+			// Pour observer l'effet de l'eclairage indirecte, nous envoyons un certain nombre de rays pour chaque pixel de l'image
+			// et nous calculons la couleur moyenne
+			for (int k = 0; k < ratioRayPerPixel; k++) {
+				Vect colorContribution = scene.estimatePixelColor(ray, 0);
+				color = color + colorContribution;
+			}
+			color = color / ratioRayPerPixel; // couleur moyenne
+			
+			
+			//Vect color = scene.estimatePixelColor(ray, 0);
 
 			// Ajustement de la couleur
 			// On prend le minimum entre la couleur determinee et 255 afin d'eviter un depassement arithmetique
@@ -199,7 +217,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("TroisSpheres.png", W, H, 3, &image[0], 0);
+	stbi_write_png("EclairageIndirecte.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

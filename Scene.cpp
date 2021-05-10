@@ -126,7 +126,16 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 				
 				return estimatePixelColor(refractedRay, nbRebonds + 1); // Couleur determinee par l'intersection ray-objet du ray refracte
 			}
-			else { // Cas diffus : la couleur du pixel dependra de la distance entre le point d'intersection et la lampe
+			else { // Cas diffus : 
+				/* L'equation du rendu determine la couleur en affirmant que la lumiere sortante d'un point est la somme des lumieres incidentes
+				* mulitipliees par la BRDF (Bidirectionnal Reflectance Distribution Function, fonctions caracterisant le materiau).
+				* L'equation du rendu necessitant le calcul d'une integrale, nous l'approximerons par la methode de Monte-Carlo.
+				* Nous avons deux type d'eclairage : l'eclairage directe et l'eclairage indirecte
+				*/
+
+				// Contribution de l'eclairage directe:
+				// la couleur du pixel dependra de la distance entre le point d'intersection et la lampe
+
 				Vect intersectionToLamp = lightOrigin - intersectionPoint;
 				double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
 
@@ -146,13 +155,25 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 				bool shadowMirror, shadowTransparent; // proprietes miroir et transparences non utilisees dans le cas de l'ombre
 				bool hasShadowIntersect = intersect(shadowRay, shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo, shadowRacine, shadowMirror, shadowTransparent);
 
+
 				if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur 
 					double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
+					
 					color = objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
 				}
-				
-				return color;
 			}
+			
+			// Contribution de l'eclairage indirecte
+			// Nous envoyons un ray depuis le point d'intersection dans une direction determinee aleatoirement dans une hemisphere
+			// La couleur indirecte resultera de l'intersection ray-objet de ce ray
+			Vect randomDirection = generateRandomDirection(intersectionNormal);
+			Ray randomRay(intersectionPoint + 0.001 * intersectionNormal, randomDirection); // origine du ray decale pour eviter les effets de bord
+			Vect indirectColor = estimatePixelColor(randomRay, nbRebonds + 1); // Couleur obtenue par eclairage indirecte
+			// D'apres l'equation du rendu, la couleur du pixel est la somme des contributions des eclairages directe et indirecte
+			Vect prod = (objectAlbedo * indirectColor);
+			color = color + objectAlbedo * indirectColor;
+			
 		}
 	}
+	return color;
 }
