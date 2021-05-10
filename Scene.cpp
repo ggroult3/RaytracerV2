@@ -158,16 +158,13 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 
 				if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur 
 					double pixelIntensity = lightIntensity / (4 * M_PI * distance * distance) * max(0., dot(intersectionNormal, intersectionToLamp / distance)); // terme calcule pour obtenir un materiau considere comme diffus
-					
+
 					color = objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
 
 				}
 
-				//cout << "directColor = " << color << endl;
 
 			}
-			
-			//cout << "Search indirectColor" << endl;
 			// Contribution de l'eclairage indirecte
 			// Nous envoyons un ray depuis le point d'intersection dans une direction determinee aleatoirement dans une hemisphere
 			// La couleur indirecte resultera de l'intersection ray-objet de ce ray
@@ -175,13 +172,9 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 			Ray randomRay(intersectionPoint + 0.001 * intersectionNormal, randomDirection); // origine du ray decale pour eviter les effets de bord
 			Vect indirectColor = estimatePixelColor(randomRay, nbRebonds + 1); // Couleur obtenue par eclairage indirecte
 			// D'apres l'equation du rendu, la couleur du pixel est la somme des contributions des eclairages directe et indirecte
-			//cout << "indirectColor = " << indirectColor << endl;
 			Vect prod = (objectAlbedo * indirectColor);
-			//cout << "prod =" << prod << endl;
 			color = color + objectAlbedo * indirectColor;
-			//cout << "so color = " << color << endl;
-			
-		}
+			}
 	}
 	return color;
 }
