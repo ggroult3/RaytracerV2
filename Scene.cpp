@@ -88,8 +88,16 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 
 		if (objectId == 0) { // Cas où le ray intersecte la source de lumiere
 			double rayon = objects[0].getRayon();
-			color = lightIntensity / (4 * M_PI * M_PI * rayon * rayon) * Vect(1.,1.,1.);
+			color = lightIntensity / (4 * M_PI * M_PI * rayon * rayon) * Vect(1., 1., 1.);
+			return color;/*
+			if (nbRebonds = 0) {
+				
+			}
+			else {
+				return color;
+			}*/
 		}
+			
 		else {
 			if (isMirror) { // Cas miroir : la couleur resultera de l'intersection ray-objet du Ray reflechi
 				Vect incidentDirection = ray.getDirection();
@@ -140,11 +148,13 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 					* Nous avons deux type d'eclairage : l'eclairage directe et l'eclairage indirecte
 					*/
 
-					// Contribution de l'eclairage directe:
+					// Contribution de l'eclairage directe (source ponctuelle)
 					// la couleur du pixel dependra de la distance entre le point d'intersection et la lampe
 
+					/*
 					Vect intersectionToLamp = lightOrigin - intersectionPoint;
 					double distance = intersectionToLamp.getNorm(); // Distance entre le point d'intersection et la lampe
+					*/
 
 					/* Avant de calculer la couleur du pixel, nous allons vérifier que ce pixel n'appartient pas a l'ombre d'un element de la scene
 					* Pour cela, nous envoyons un Ray vers la lampe.
@@ -152,7 +162,7 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 					* et que le point d'intersection obtenue se situe sur le segment [premier point d'intersection - lampe] (donc shadowRacine < distance),
 					* alors le pixel restera noir car il appartient à l'ombre d'un objet de la scene.
 					*/
-
+					/*
 					Ray shadowRay(intersectionPoint + 0.0001 * intersectionNormal, intersectionToLamp / distance); // Ray allant du point d'intersection vers la lampe.
 					// Nous avons decale l'origine du Ray de la surface de l'objet pour eviter les effets de bord (nommes bruits d'ombre)
 
@@ -170,10 +180,56 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 						color = objectAlbedo / M_PI * pixelIntensity; // Couleur du pixel = Albedo de l'objet intersecte * terme de diffusion de la lumiere
 
 					}
+					*/
 
+					// Contribution de l'eclairage directe (source spherique)
+
+					// Nous allons echantillons des elements de surface de la sphere de lumiere afin d'avoir prendre en compte
+					// le terme emissif de la lampe dans l'equation du rendu.
+					// Ces echantillons auront une probabilite en cosinus et le calcul de l'integrale se fera 
+					// par approximation de Monte-Carlo
+					//
+
+					Vect intersectionToLamp = lightOrigin - intersectionPoint; // Direction Point d'intersection - Origine de la lampe
+					intersectionToLamp = intersectionToLamp.normalize(); // La direction doit etre unitaire
+					Vect omega = generateRandomDirection(-intersectionToLamp); // Direction aleatoire unitaire partant de l'origine de la sphere de lumiere
+					// et appartenant a l'hemisphere de normale -intersectionToLamp
+					Vect randomPoint = objects[0].getCenter() + objects[0].getRayon() * omega;// Point aleatoire sur la surface de la sphere de lumiere
+					Vect intersectionToRandomPoint = randomPoint - intersectionPoint; // Direction Point d'intersection - Point aleatoire sur la surface de la sphere de lumiere
+
+					double distance = intersectionToRandomPoint.getNorm(); // distance entre la point d'intersection et la sphere de lumiere (au point aleatoire)
+					intersectionToRandomPoint = intersectionToRandomPoint.normalize();// La direction est maintenant unitaire
+
+					/* Avant de calculer la couleur du pixel, nous allons vérifier que ce pixel n'appartient pas a l'ombre d'un element de la scene
+					* Pour cela, nous envoyons un Ray vers la lampe.
+					* S'il y a intersection ray-objet (donc racine positive)
+					* et que le point d'intersection obtenue se situe sur le segment [premier point d'intersection - lampe] (donc shadowRacine < distance),
+					* alors le pixel restera noir car il appartient à l'ombre d'un objet de la scene.
+					*/
+					
+					Ray shadowRay(intersectionPoint + 0.0001 * intersectionNormal, intersectionToLamp / distance); // Ray allant du point d'intersection vers la lampe.
+					// Nous avons decale l'origine du Ray de la surface de l'objet pour eviter les effets de bord (nommes bruits d'ombre)
+
+					//Nous reutilisons la meme methode d'intersection donc nous calculons le point d'intersection et le vecteur normal a ce point mais ils ne seront pas utilises
+					Vect shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo;
+					double shadowRacine; // racine de la nouvelle intersection
+					bool shadowMirror, shadowTransparent; // proprietes miroir et transparences non utilisees dans le cas de l'ombre
+					int shadowObjectId; // Indice de l'objet intersecte
+					bool hasShadowIntersect = intersect(shadowRay, shadowIntersectionPoint, shadowIntersectionNormal, shadowAlbedo, shadowRacine, shadowMirror, shadowTransparent, shadowObjectId);
+
+
+					if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur
+						// Calcul de la couleur par Monte-Carlo
+						double rayon = objects[0].getRayon();
+						double samplingProbability = dot(-intersectionToLamp, omega) / (M_PI * rayon * rayon); // Probabilite d'echantillonner un point de la sphere lumineuse
+						double jacobian = dot(omega, -intersectionToRandomPoint) / (distance * distance); // Jacobienne résultant de l'equation du rendu
+						double pixelIntensity = lightIntensity / (4 * M_PI * M_PI * rayon * rayon) * max(0., dot(intersectionNormal, intersectionToRandomPoint));
+						color = (pixelIntensity * jacobian / samplingProbability) * objectAlbedo / M_PI; // Couleur du pixel 
+
+					}
 
 				}
-				
+
 				// Contribution de l'eclairage indirecte
 				// Nous envoyons un ray depuis le point d'intersection dans une direction determinee aleatoirement dans une hemisphere
 				// La couleur indirecte resultera de l'intersection ray-objet de ce ray
