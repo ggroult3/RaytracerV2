@@ -100,7 +100,7 @@ int main() {
 	int W = 512; // Largeur de l'image
 	int H = 512; // Hauteur de l'image
 
-	int ratioRayPerPixel = 100; // Nombre de rays envoyes pour chaque pixel (pour l'eclairage indirecte)
+	int ratioRayPerPixel = 200; // Nombre de rays envoyes pour chaque pixel (pour l'eclairage indirecte)
 	
 	/* Test de la classe Vect
 	Vect u(2, 3, 4);
@@ -127,7 +127,8 @@ int main() {
 	double fieldOfView = 60 * M_PI / 180; // Champ de vision
 
 	bool useGammaCorrection = true; // true : Activation de la correction Gamma
-	bool useAntiAliasing = false; // true : Activation de l'anti-crenelage
+	bool useAntiAliasing = true; // true : Activation de l'anti-crenelage
+	bool useDepthOfField = true; // true : Activation de l'effet de profondeur de champ
 	double lightIntensity;
 
 	if (useGammaCorrection) {
@@ -146,9 +147,9 @@ int main() {
 	scene.setLightOrigin(lightOrigin);
 
 	//Declaration des elements de la scene
-	Sphere lumiere(scene.getLightOrigin(), 5, Vect(255., 255., 255.)); // Lampe spherique
-	Sphere Sdiffuse(Vect(-20, 0, 0), 10, Vect(21., 137., 10.)); // Sphere principale verte
-	Sphere Smiroir(Vect(20, 0, 0), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
+	Sphere lumiere(scene.getLightOrigin(), 7, Vect(255., 255., 255.)); // Lampe spherique
+	Sphere Sdiffuse(Vect(-15, 0, 20), 10, Vect(21., 137., 10.)); // Sphere principale verte
+	Sphere Smiroir(Vect(15, 0, -20), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
 	Sphere Stransparente(Vect(0, 0, 0), 10, Vect(21., 137., 10.), false, true); // Sphere principale transparente
 	Sphere sol(Vect(0, -1000, 0), 990, Vect(255., 0., 0.));
 	Sphere plafond(Vect(0, 1000, 0), 940, Vect(0., 0., 255.));
@@ -177,7 +178,7 @@ int main() {
 #pragma omp parallel for schedule(dynamic,1)
 	for (int i = 0; i < H; i++) {
 		if (i % 50 == 0) {
-			cout << i << endl;
+			cout << i << " / " << H << " lignes parcourues" << endl;
 		}
 		for (int j = 0; j < W; j++) {
 
@@ -205,7 +206,35 @@ int main() {
 					// La direction du ray est pertubee par l'ajout du vecteur (x, y, 0)
 					Vect disturbedDirection(j - W / 2 + x + 0.5, i - H / 2 + y + 0.5, -W / (2. * tan(fieldOfView / 2)));
 					disturbedDirection = disturbedDirection.normalize(); // la direction du rayon doit toujours etre normee
-					Ray disturbedRay(cameraOrigin, disturbedDirection); // Ray partant de la camera vers une zone voisine au centre du pixel de l'image
+					Ray disturbedRay(Vect(0., 0., 0.), Vect(0., 0., 0.)); // Ray partant de la camera vers une zone voisine au centre du pixel de l'image
+
+
+					if (useDepthOfField) { // Application de la profondeur de champ
+						// Nous calculons des nombres aléatoires suivant une loi normale centree par la transformation de Box-Muller.
+						// Ces nombres aleatoires appartiennent aux coordoonees d'un point situe dans le disque d'ouverture de la camera.
+						// Apres avoir fait la mise au point de la camera sur une cible, nous envoyons un rayon depuis le point aleatoire vers la cible.
+
+						u1 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+						u2 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+
+						// Calcul des coordonnees aleatoires suivant la loi normale centree d'ecart-type sigma
+						// via la transformation de Box-Muller
+						x = sigma * cos(2 * M_PI * u1) * sqrt(-2 * log(u2));
+						y = sigma * sin(2 * M_PI * u1) * sqrt(-2 * log(u2));
+
+						Vect focusPoint = cameraOrigin + 55 * disturbedDirection; // Mise au point de la camera
+						Vect randomPoint = cameraOrigin + Vect(x, y, 0.); // Point aleatoire dans le disque d'ouverture
+						Vect randomPointToFocusPoint = focusPoint - randomPoint;
+						randomPointToFocusPoint = randomPointToFocusPoint.normalize();
+
+						disturbedRay.setOrigin(randomPoint);
+						disturbedRay.setDirection(randomPointToFocusPoint);
+					}
+					else { // pas d'effet de profondeur de champ
+						disturbedRay.setOrigin(cameraOrigin);
+						disturbedRay.setDirection(disturbedDirection);
+					}
+					
 
 					// Calcul de la couleur du pixel
 					// Pour observer l'effet de l'eclairage indirecte, nous envoyons un certain nombre de rays pour chaque pixel de l'image
@@ -218,7 +247,34 @@ int main() {
 				// Calcul du ray envoye par la camera
 				Vect direction(j - W / 2, i - H / 2, -W / (2. * tan(fieldOfView / 2)));
 				direction = direction.normalize(); // la direction du rayon doit toujours etre normee
-				Ray ray(cameraOrigin, direction); // Ray partant de la camera vers le centre du pixel de l'image
+				Ray ray(Vect(0., 0., 0.), Vect(0., 0., 0.)); // Ray partant de la camera vers le centre du pixel de l'image
+
+				if (useDepthOfField) { // Application de la profondeur de champ
+						// Nous calculons des nombres aléatoires suivant une loi normale centree par la transformation de Box-Muller.
+						// Ces nombres aleatoires appartiennent aux coordoonees d'un point situe dans le disque d'ouverture de la camera.
+						// Apres avoir fait la mise au point de la camera sur une cible, nous envoyons un rayon depuis le point aleatoire vers la cible.
+					
+					double sigma = 0.25; // Ecart-type de la loi normale
+					double u1 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+					double u2 = uniform(engine); // echantillon suivant la loi uniforme U[0,1]
+
+					// Calcul des coordonnees aleatoires suivant la loi normale centree d'ecart-type sigma
+					// via la transformation de Box-Muller
+					double x = sigma * cos(2 * M_PI * u1) * sqrt(-2 * log(u2));
+					double y = sigma * sin(2 * M_PI * u1) * sqrt(-2 * log(u2));
+
+					Vect focusPoint = cameraOrigin + 55 * direction; // Mise au point de la camera
+					Vect randomPoint = cameraOrigin + Vect(x, y, 0.); // Point aleatoire dans le disque d'ouverture
+					Vect randomPointToFocusPoint = focusPoint - randomPoint;
+					randomPointToFocusPoint = randomPointToFocusPoint.normalize();
+
+					ray.setOrigin(randomPoint);
+					ray.setDirection(randomPointToFocusPoint);
+				}
+				else { // pas d'effet de profondeur de champ
+					ray.setOrigin(cameraOrigin);
+					ray.setDirection(direction);
+				}
 
 				// Calcul de la couleur du pixel
 				// Pour observer l'effet de l'eclairage indirecte, nous envoyons un certain nombre de rays pour chaque pixel de l'image
@@ -255,7 +311,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("OmbreDouce.png", W, H, 3, &image[0], 0);
+	stbi_write_png("ProfondeurDeChamp.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;
