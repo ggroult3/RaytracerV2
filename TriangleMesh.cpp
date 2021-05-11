@@ -32,59 +32,67 @@ bool TriangleMesh::getTransparencyProperty()
 bool TriangleMesh::intersect(Ray& r, Vect& P, Vect& N, double& racine)
 {
 	// Determine si la maillage triangulaire est intersecte par le ray
+	
 	racine = 1E10;
 	bool hasIntersect = false;
 
-	/* Pour savoir si le ray intersecte le maillage, nous allons parcourir chaque triangle du maillage
-	* et determiner (localement) s'il y a intersection triangle-ray.
-	* Pour cela, nous devenons determiner s'il y a une intersection ray-plan avec le plan contenant le triangle
-	* et verifier que le point d'intersection est a l'interieur du triangle grace aux coordonnes barycentriques.
-	*/
+	// Si le ray intersecte le maillage, alors il intersecte aussi sa boite englobante
+	bool hasHitBoxIntersect = hitBox.intersect(r);
+	if (hasHitBoxIntersect) { //
+		/* Pour savoir si le ray intersecte le maillage, nous allons parcourir chaque triangle du maillage
+		* et determiner (localement) s'il y a intersection triangle-ray.
+		* Pour cela, nous devenons determiner s'il y a une intersection ray-plan avec le plan contenant le triangle
+		* et verifier que le point d'intersection est a l'interieur du triangle grace aux coordonnes barycentriques.
+		*/
 
-	for (int i = 0; i < indices.size(); i++) {// Nous parcourons le maillage
+		for (int i = 0; i < indices.size(); i++) {// Nous parcourons le maillage
 		
-		// Soient A, B et C les sommets du triangles
-		const Vect& A = vertices[indices[i].vtxi];
-		const Vect& B = vertices[indices[i].vtxj];
-		const Vect& C = vertices[indices[i].vtxk];
+			// Soient A, B et C les sommets du triangles
+			const Vect& A = vertices[indices[i].vtxi];
+			const Vect& B = vertices[indices[i].vtxj];
+			const Vect& C = vertices[indices[i].vtxk];
 
-		// Soient u et v deux vecteurs directeurs du plan contenant le triangle et w un vecteur normal
-		Vect u = C - A; // = Vecteur AC
-		Vect v = B - A; // = Vecteur AB
-		Vect w = cross(u, v);
+			// Soient u et v deux vecteurs directeurs du plan contenant le triangle et w un vecteur normal
+			Vect u = C - A; // = Vecteur AC
+			Vect v = B - A; // = Vecteur AB
+			Vect w = cross(u, v);
 
-		// Soit O l'origine du ray et z son vecteur directeur 
-		Vect O = r.getOrigin();
-		Vect z = r.getDirection();
+			// Soit O l'origine du ray et z son vecteur directeur 
+			Vect O = r.getOrigin();
+			Vect z = r.getDirection();
 
-		/* Nous notons P le point d'intersection et N le vecteur normal au point P.
-		* Nous savons que dot(PA,w) = 0 pour que P puisse appartenir au plan
-		* et que P = O + racine * z pour appartenir au ray.
-		* Apres developpement, nous avons donc racine = dot(OA,w) / dot(z,w)
-		*/
-		Vect OA = A - O;
-		double localRacine = dot(OA, w) / dot(z, w);
-		/* Cependant ça ne suffit pas, il faut que la racine soit positive et que le point d'intersection appartiennent bien au triangle
-		* Calculons les coordonnées barycentriques
-		* P = alpha * A + beta * B + gamma * C
-		* De plus alpha + beta + gamma = 1
-		* D'apres Moller-Trumbore, P = A + gamma * u + beta * v
-		* Apres developpement, on a :
-		* beta = dot(u, cross(OA,z)) / dot(z,w)
-		* gamma = - dot(v,cross(OA,z)) / dot(z,w)
-		*/
-		double beta = dot(u, cross(OA, z)) / dot(z, w);
-		double gamma = -dot(v, cross(OA, z)) / dot(z, w);
-		double alpha = 1 - beta - gamma;
-		if (alpha >= 0 && beta >= 0 && gamma >= 0 && beta <= 1 && gamma <= 1 && localRacine > 0) {
-			hasIntersect = true;
-			if (localRacine < racine) {
-				racine = localRacine;
-				P = O + racine * z;
-				N = w;
+			/* Nous notons P le point d'intersection et N le vecteur normal au point P.
+			* Nous savons que dot(PA,w) = 0 pour que P puisse appartenir au plan
+			* et que P = O + racine * z pour appartenir au ray.
+			* Apres developpement, nous avons donc racine = dot(OA,w) / dot(z,w)
+			*/
+			Vect OA = A - O;
+			double localRacine = dot(OA, w) / dot(z, w);
+			/* Cependant ça ne suffit pas, il faut que la racine soit positive et que le point d'intersection appartiennent bien au triangle
+			* Calculons les coordonnées barycentriques
+			* P = alpha * A + beta * B + gamma * C
+			* De plus alpha + beta + gamma = 1
+			* D'apres Moller-Trumbore, P = A + gamma * u + beta * v
+			* Apres developpement, on a :
+			* beta = dot(u, cross(OA,z)) / dot(z,w)
+			* gamma = - dot(v,cross(OA,z)) / dot(z,w)
+			*/
+			double beta = dot(u, cross(OA, z)) / dot(z, w);
+			double gamma = -dot(v, cross(OA, z)) / dot(z, w);
+			double alpha = 1 - beta - gamma;
+			if (alpha >= 0 && beta >= 0 && gamma >= 0 && beta <= 1 && gamma <= 1 && localRacine > 0) {
+				hasIntersect = true;
+				if (localRacine < racine) {
+					racine = localRacine;
+					P = O + racine * z;
+					N = w;
+				}
 			}
 		}
 	}
+	
+
+	
 
 
 	return hasIntersect;
@@ -270,4 +278,34 @@ void TriangleMesh::readOBJ(const char* obj) {
 	}
 	fclose(f);
 
+}
+
+void TriangleMesh::buildHitBox()
+{
+	// Construit la boite englobante du maillage.
+	// N.B. : dans les jeux-videos, la hit box est la boite englobante d'une entite lui infligeant des degats si elle rentre en collision avec certaines entites.
+
+	/* Pour construire la boite englobante du maillage, nous allons parcourir l'ensemble du maillage
+	* pour rechercher les bornes inferieures et superieures selon les trois axes (ex, ey, ez) (cf algorithme recherche d'extrema globaux)
+	*/
+
+	// Initialisation des vecteurs contenant les extrema sur chaque axe
+	Vect minVector(1E9, 1E9, 1E9);
+	Vect maxVector(-1E9, -1E9, -1E9);
+
+	for (int i = 0; i < vertices.size(); i++) { // Nous parcourons le maillage de triangle en triangle
+		for (int j = 0; j < 3; j++) { // Pour chacun des axes (ex, ey, ez)
+			minVector[j] = min(minVector[j], vertices[i][j]);
+			maxVector[j] = max(minVector[j], vertices[i][j]);
+		}
+	}
+	
+	hitBox.setBorneInf(minVector);
+	hitBox.setBorneSup(maxVector);
+}
+
+BoiteEnglobante TriangleMesh::getHitBox()
+{
+	// Accesseur de la boite englobante du maillage
+	return hitBox;
 }

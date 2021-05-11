@@ -171,6 +171,8 @@ int main() {
 		figurine.vertices[i][1] -= 10;
 	}
 
+	figurine.buildHitBox();
+
 	//Ajout des elements de la scene
 	scene.push(&lumiere);
 	//scene.push(&Sdiffuse);

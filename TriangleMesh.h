@@ -9,6 +9,7 @@
 #include "Vect.h"
 #include "TriangleIndices.h"
 #include "Object.h"
+#include "BoiteEnglobante.h"
 
 using namespace std;
 
@@ -21,7 +22,11 @@ public:
 	bool getTransparencyProperty();
 	bool intersect(Ray& r, Vect& P, Vect& N, double& racine);
 
+
 	void readOBJ(const char* obj); 
+
+	void buildHitBox();
+	BoiteEnglobante getHitBox();
 
 	vector<TriangleIndices> indices;
 	vector<Vect> vertices;
@@ -32,5 +37,6 @@ public:
 private:
 	Vect albedo;
 	bool isMirror, isTransparent;
+	BoiteEnglobante hitBox;
 
 };
