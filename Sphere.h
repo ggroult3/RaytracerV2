@@ -1,8 +1,9 @@
 #pragma once
 #include "Vect.h"
 #include "Ray.h"
+#include "Object.h"
 
-class Sphere
+class Sphere : public Object
 {
 public:
 	Sphere(const Vect& C, double R,const Vect& albedo, bool mirror = false, bool transparent = false);

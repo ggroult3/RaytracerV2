@@ -22,6 +22,7 @@ using namespace std;
 #include "Sphere.h"
 #include <algorithm>
 #include "Scene.h"
+#include "TriangleMesh.h"
 
 
 
@@ -97,8 +98,8 @@ int main() {
 	*/
 
 
-	int W = 512; // Largeur de l'image
-	int H = 512; // Hauteur de l'image
+	int W = 32; // Largeur de l'image
+	int H = 32; // Hauteur de l'image
 
 	int ratioRayPerPixel = 200; // Nombre de rays envoyes pour chaque pixel (pour l'eclairage indirecte)
 	
@@ -148,9 +149,9 @@ int main() {
 
 	//Declaration des elements de la scene
 	Sphere lumiere(scene.getLightOrigin(), 7, Vect(255., 255., 255.)); // Lampe spherique
-	Sphere Sdiffuse(Vect(-15, 0, 20), 10, Vect(21., 137., 10.)); // Sphere principale verte
-	Sphere Smiroir(Vect(15, 0, -20), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
-	Sphere Stransparente(Vect(0, 0, 0), 10, Vect(21., 137., 10.), false, true); // Sphere principale transparente
+	//Sphere Sdiffuse(Vect(-15, 0, 20), 10, Vect(21., 137., 10.)); // Sphere principale verte
+	//Sphere Smiroir(Vect(15, 0, -20), 10, Vect(21., 137., 10.), true); // Sphere principale miroir
+	//Sphere Stransparente(Vect(0, 0, 0), 10, Vect(21., 137., 10.), false, true); // Sphere principale transparente
 	Sphere sol(Vect(0, -1000, 0), 990, Vect(255., 0., 0.));
 	Sphere plafond(Vect(0, 1000, 0), 940, Vect(0., 0., 255.));
 	Sphere murGauche(Vect(-1000, 0, 0), 940, Vect(255., 0., 255.));
@@ -158,17 +159,30 @@ int main() {
 	Sphere murAvant(Vect(0, 0, -1000), 940, Vect(255., 255., 0.));
 	Sphere murArriere(Vect(0, 0, 1000), 940, Vect(0., 255., 0.));
 
+	TriangleMesh figurine(Vect(255., 255., 255.));
+
+	figurine.readOBJ("oot-link.obj"); // Lecture de l'OBJ
+
+	// Transformation geometrique du maillage (translation, homothetie,...)
+	for (int i = 0; i < figurine.vertices.size(); i++) {
+		figurine.vertices[i][0] = 100 * figurine.vertices[i][0];
+		figurine.vertices[i][1] = 100 * figurine.vertices[i][1];
+		figurine.vertices[i][2] = 100 * figurine.vertices[i][2];
+		figurine.vertices[i][1] -= 10;
+	}
+
 	//Ajout des elements de la scene
-	scene.push(lumiere);
-	scene.push(Sdiffuse);
-	scene.push(Smiroir);
-	scene.push(Stransparente);
-	scene.push(sol);
-	scene.push(plafond);
-	scene.push(murGauche);
-	scene.push(murDroite);
-	scene.push(murAvant);
-	scene.push(murArriere);
+	scene.push(&lumiere);
+	//scene.push(&Sdiffuse);
+	//scene.push(&Smiroir);
+	//scene.push(&Stransparente);
+	scene.push(&sol);
+	scene.push(&plafond);
+	scene.push(&murGauche);
+	scene.push(&murDroite);
+	scene.push(&murAvant);
+	scene.push(&murArriere);
+	scene.push(&figurine);
 
 	
 
@@ -177,7 +191,7 @@ int main() {
 	// Parallelisation des operations
 #pragma omp parallel for schedule(dynamic,1)
 	for (int i = 0; i < H; i++) {
-		if (i % 50 == 0) {
+		if (i % 8 == 0) {
 			cout << i << " / " << H << " lignes parcourues" << endl;
 		}
 		for (int j = 0; j < W; j++) {
@@ -311,7 +325,7 @@ int main() {
 	}
 
 	// Ecriture de l'image sous format PNG
-	stbi_write_png("ProfondeurDeChamp.png", W, H, 3, &image[0], 0);
+	stbi_write_png("ReadOBJ.png", W, H, 3, &image[0], 0);
 	time(&endTime);
 	cout << "Image enregistree au format PNG au bout de " << difftime(endTime,beginTime) << " seconde(s) !" << endl;
 	return 0;

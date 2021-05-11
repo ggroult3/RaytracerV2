@@ -29,7 +29,7 @@ Vect& Scene::getLightOrigin()
 	return lightOrigin;
 }
 
-void Scene::push(Sphere& object)
+void Scene::push(Object* object)
 {
 	// Ajoute un object comme element de la scene
 	objects.push_back(object);
@@ -55,7 +55,7 @@ bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal,
 		
 		Vect localIntersectionPoint, localIntersectionNormal; // Point d'intersection avec le ieme objet et vecteur normale a ce point d'intersection
 		double localRacine; // Racine obtenue lors de l'intersection du ray avec le ieme objet
-		bool hasLocalIntersect = objects[i].intersect(r, localIntersectionPoint, localIntersectionNormal,localRacine); // Determination de l'intersection ray-objet avec le 
+		bool hasLocalIntersect = objects[i]->intersect(r, localIntersectionPoint, localIntersectionNormal,localRacine); // Determination de l'intersection ray-objet avec le 
 		if (hasLocalIntersect && localRacine < racine) { // S'il y a intersection avec le ieme objet et que la racine obtenue est inferieure a celle obtenue precedemment alors le ieme objet est plus de la camera
 			racine = localRacine; // Nous nous conservons la racine obtenue lors cette intersection 
 			intersectionPoint = localIntersectionPoint; // ainsi que le point d'intersection determine
@@ -63,9 +63,9 @@ bool Scene::intersect(Ray& r, Vect& intersectionPoint, Vect& intersectionNormal,
 			if (!hasIntersect) { // S'il n'y a pas eu d'intersection avant, on annonce qu'il y en a une
 				hasIntersect = true;
 			}
-			albedo = objects[i].getAlbedo(); // La couleur du pixel sera lie a l'albedo du ieme objet
-			isMirror = objects[i].getMirrorProperty(); // Propriete miroir du ieme objet
-			isTransparent = objects[i].getTransparencyProperty(); // Propriete de transparence du ieme objet
+			albedo = objects[i]->getAlbedo(); // La couleur du pixel sera lie a l'albedo du ieme objet
+			isMirror = objects[i]->getMirrorProperty(); // Propriete miroir du ieme objet
+			isTransparent = objects[i]->getTransparencyProperty(); // Propriete de transparence du ieme objet
 			objectId = i; // Indice de l'objet intersecte dans le vector objects
 		}
 	}
@@ -87,7 +87,7 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 	if (hasIntersect && nbRebonds < 5) { //S'il y a intersection sphere-ray et que nous n'avons pas atteint la fin de la recursion, nous avons quatre cas possibles : 
 
 		if (objectId == 0) { // Cas où le ray intersecte la source de lumiere
-			double rayon = objects[0].getRayon();
+			double rayon = dynamic_cast<Sphere*>(objects[0])->getRayon();
 			color = lightIntensity / (4 * M_PI * M_PI * rayon * rayon) * Vect(1., 1., 1.);
 			return color;/*
 			if (nbRebonds = 0) {
@@ -194,7 +194,7 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 					intersectionToLamp = intersectionToLamp.normalize(); // La direction doit etre unitaire
 					Vect omega = generateRandomDirection(-intersectionToLamp); // Direction aleatoire unitaire partant de l'origine de la sphere de lumiere
 					// et appartenant a l'hemisphere de normale -intersectionToLamp
-					Vect randomPoint = objects[0].getCenter() + objects[0].getRayon() * omega;// Point aleatoire sur la surface de la sphere de lumiere
+					Vect randomPoint = dynamic_cast<Sphere*>(objects[0])->getCenter() + dynamic_cast<Sphere*>(objects[0])->getRayon() * omega;// Point aleatoire sur la surface de la sphere de lumiere
 					Vect intersectionToRandomPoint = randomPoint - intersectionPoint; // Direction Point d'intersection - Point aleatoire sur la surface de la sphere de lumiere
 
 					double distance = intersectionToRandomPoint.getNorm(); // distance entre la point d'intersection et la sphere de lumiere (au point aleatoire)
@@ -220,7 +220,7 @@ Vect& Scene::estimatePixelColor(Ray& ray, double nbRebonds)
 
 					if (!hasShadowIntersect || shadowRacine >= distance) { // Dans le cas ou aucune des deux conditions pour obtenir de l'ombre n'est verifiee, nous determinons la couleur
 						// Calcul de la couleur par Monte-Carlo
-						double rayon = objects[0].getRayon();
+						double rayon = dynamic_cast<Sphere*>(objects[0])->getRayon();
 						double samplingProbability = dot(-intersectionToLamp, omega) / (M_PI * rayon * rayon); // Probabilite d'echantillonner un point de la sphere lumineuse
 						double jacobian = dot(omega, -intersectionToRandomPoint) / (distance * distance); // Jacobienne résultant de l'equation du rendu
 						double pixelIntensity = lightIntensity / (4 * M_PI * M_PI * rayon * rayon) * max(0., dot(intersectionNormal, intersectionToRandomPoint));
